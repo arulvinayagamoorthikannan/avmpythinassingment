@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insurance Claim Risk Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #1a2235;
+    --border: #2a3a55;
+    --accent: #3b82f6;
+    --accent2: #10b981;
+    --accent3: #f59e0b;
+    --accent4: #ef4444;
+    --accent5: #8b5cf6;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --highlight: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 3rem 0 2rem;
+    display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+  .header-left {}
+  .badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.15em;
+    color: var(--accent); background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.3);
+    padding: 0.3rem 0.8rem; border-radius: 2px;
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e2e8f0 30%, #60a5fa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
+  .meta-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.5rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
+    color: var(--muted); line-height: 1.8;
+  }
+  .meta-box span { color: var(--text); }
+
+  /* ── KPI STRIP ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem; margin-bottom: 2.5rem;
+  }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.4rem 1.2rem;
+    position: relative; overflow: hidden;
+    animation: fadeUp 0.5s both;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi:nth-child(1)::before { background: var(--accent); }
+  .kpi:nth-child(2)::before { background: var(--accent2); }
+  .kpi:nth-child(3)::before { background: var(--accent3); }
+  .kpi:nth-child(4)::before { background: var(--accent4); }
+  .kpi:nth-child(5)::before { background: var(--accent5); }
+  .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .kpi-value { font-family: 'IBM Plex Mono', monospace; font-size: 1.8rem; font-weight: 600; margin: 0.3rem 0 0; }
+  .kpi-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+  .kpi:nth-child(1) .kpi-value { color: var(--accent); }
+  .kpi:nth-child(2) .kpi-value { color: var(--accent2); }
+  .kpi:nth-child(3) .kpi-value { color: var(--accent3); }
+  .kpi:nth-child(4) .kpi-value { color: var(--accent4); }
+  .kpi:nth-child(5) .kpi-value { color: var(--accent5); }
+
+  /* ── CHARTS GRID ── */
+  .charts-main {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.5rem;
+  }
+
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 1.5rem;
+    animation: fadeUp 0.6s both;
+    transition: border-color 0.3s;
+  }
+  .chart-card:hover { border-color: rgba(59,130,246,0.45); }
+
+  .col-8  { grid-column: span 8; }
+  .col-4  { grid-column: span 4; }
+  .col-6  { grid-column: span 6; }
+  .col-12 { grid-column: span 12; }
+
+  @media (max-width: 900px) {
+    .col-8, .col-4, .col-6, .col-12 { grid-column: span 12; }
+  }
+
+  .chart-title {
+    font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.85rem;
+    color: var(--text); letter-spacing: 0.02em; text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+  .chart-desc { font-size: 0.75rem; color: var(--muted); margin-bottom: 1.2rem; }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { border-radius: 6px; }
+
+  /* ── HEATMAP ── */
+  .heatmap-grid {
+    display: grid;
+    gap: 3px;
+  }
+  .heatmap-cell {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; font-weight: 600;
+    border-radius: 4px; cursor: default;
+    transition: transform 0.15s;
+  }
+  .heatmap-cell:hover { transform: scale(1.08); z-index: 10; }
+  .heatmap-label { font-size: 0.68rem; color: var(--muted); }
+
+  /* ── FRAUD TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead th {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+    padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  tbody tr { transition: background 0.2s; }
+  tbody tr:hover { background: rgba(59,130,246,0.07); }
+  tbody td { padding: 0.6rem 0.8rem; border-bottom: 1px solid rgba(42,58,85,0.5); vertical-align: middle; }
+  .fraud-badge {
+    display: inline-block; font-size: 0.65rem; font-weight: 700;
+    padding: 0.2rem 0.55rem; border-radius: 20px; letter-spacing: 0.06em;
+  }
+  .fraud-yes { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .fraud-no  { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+
+  /* ── 3D SCATTER ── */
+  #scatter3d-container {
+    width: 100%; height: 300px; position: relative;
+    background: radial-gradient(ellipse at center, #141f35 0%, #0a0e1a 70%);
+    border-radius: 10px; overflow: hidden;
+  }
+  #scatter3d-canvas { width: 100%; height: 100%; }
+  .axis-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--muted); }
+
+  /* ── LEGEND DOTS ── */
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── SECTION DIVIDER ── */
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em;
+    color: var(--muted); text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.8rem;
+    margin: 2rem 0 1.2rem;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .kpi:nth-child(1) { animation-delay: 0.05s; }
+  .kpi:nth-child(2) { animation-delay: 0.10s; }
+  .kpi:nth-child(3) { animation-delay: 0.15s; }
+  .kpi:nth-child(4) { animation-delay: 0.20s; }
+  .kpi:nth-child(5) { animation-delay: 0.25s; }
+
+  /* ── RISK BAR ── */
+  .risk-bar-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem; }
+  .risk-bar-label { font-size: 0.75rem; width: 60px; color: var(--text); flex-shrink: 0; }
+  .risk-bar-track { flex: 1; height: 10px; background: rgba(255,255,255,0.06); border-radius: 20px; overflow: hidden; }
+  .risk-bar-fill { height: 100%; border-radius: 20px; transition: width 1.2s cubic-bezier(.16,1,.3,1); }
+  .risk-bar-val { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--muted); width: 30px; text-align: right; }
+
+  footer {
+    margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+    font-size: 0.72rem; color: var(--muted); text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="badge">Python · Assignment 5 · Visualization</div>
+      <h1>Insurance Claim<br>Risk Analysis</h1>
+      <p class="subtitle">Interactive dashboard · Matplotlib & Seaborn concepts in HTML/JS</p>
+    </div>
+    <div class="meta-box">
+      Student: <span>Arulvinayagamoorthi.K</span><br>
+      Reg No: <span>2117250020038</span><br>
+      Dept: <span>CSE — Rajalakshmi Institute of Technology</span><br>
+      Faculty: <span>Dr. H. Anwar Basha</span><br>
+      Date: <span>25 / 05 / 2026</span>
+    </div>
+  </header>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Total Claims</div>
+      <div class="kpi-value">10</div>
+      <div class="kpi-sub">C001 – C010</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Claim Amount</div>
+      <div class="kpi-value">$503K</div>
+      <div class="kpi-sub">Across all claims</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Risk Score</div>
+      <div class="kpi-value">71.3</div>
+      <div class="kpi-sub">Scale of 0–100</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Fraud Cases</div>
+      <div class="kpi-value">3</div>
+      <div class="kpi-sub">30% fraud rate</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Premium</div>
+      <div class="kpi-value">$1,143</div>
+      <div class="kpi-sub">Per policyholder</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Line + Bar -->
+  <div class="section-label">Temporal &amp; Categorical Analysis</div>
+  <div class="charts-main" id="row1">
+
+    <div class="chart-card col-8" style="animation-delay:.1s">
+      <div class="chart-title">Claim Amount Over Time</div>
+      <div class="chart-desc">Monthly insurance claim amounts — Jan to Oct</div>
+      <div class="chart-wrap"><canvas id="lineChart" height="200"></canvas></div>
+    </div>
+
+    <div class="chart-card col-4" style="animation-delay:.2s">
+      <div class="chart-title">Claim Type Frequency</div>
+      <div class="chart-desc">Count of each claim category</div>
+      <div class="chart-wrap"><canvas id="barChart" height="200"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ROW 2: Scatter + Histogram + Pie -->
+  <div class="section-label">Distribution &amp; Composition</div>
+  <div class="charts-main" id="row2">
+
+    <div class="chart-card col-6" style="animation-delay:.1s">
+      <div class="chart-title">Claim Amount vs Risk Score</div>
+      <div class="chart-desc">Scatter plot — relationship between amount and risk</div>
+      <div class="chart-wrap"><canvas id="scatterChart" height="220"></canvas></div>
+    </div>
+
+    <div class="chart-card col-3" style="animation-delay:.2s">
+      <div class="chart-title">Risk Score Distribution</div>
+      <div class="chart-desc">Histogram with 5 bins</div>
+      <div class="chart-wrap"><canvas id="histChart" height="220"></canvas></div>
+    </div>
+
+    <div class="chart-card col-3" style="animation-delay:.3s">
+      <div class="chart-title">Claim Type Split</div>
+      <div class="chart-desc">Proportional breakdown by type</div>
+      <div class="chart-wrap"><canvas id="pieChart" height="220"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ROW 3: Density / Heatmap / Risk bars -->
+  <div class="section-label">Correlation &amp; Risk Profiling</div>
+  <div class="charts-main" id="row3">
+
+    <div class="chart-card col-4" style="animation-delay:.1s">
+      <div class="chart-title">Premium Distribution (KDE)</div>
+      <div class="chart-desc">Density plot of premium amounts</div>
+      <div class="chart-wrap"><canvas id="densityChart" height="220"></canvas></div>
+    </div>
+
+    <div class="chart-card col-5" style="animation-delay:.2s">
+      <div class="chart-title">Correlation Heatmap</div>
+      <div class="chart-desc">Insurance parameter relationships</div>
+      <div id="heatmapDiv"></div>
+    </div>
+
+    <div class="chart-card col-3" style="animation-delay:.3s">
+      <div class="chart-title">Risk Score by Claim</div>
+      <div class="chart-desc">Individual risk profiles</div>
+      <div id="riskBars"></div>
+    </div>
+
+  </div>
+
+  <!-- ROW 4: Premium by Region + Fraud Table -->
+  <div class="section-label">Regional &amp; Fraud Analysis</div>
+  <div class="charts-main" id="row4">
+
+    <div class="chart-card col-5" style="animation-delay:.1s">
+      <div class="chart-title">Premium by Region</div>
+      <div class="chart-desc">Bar chart — policyholder premium distribution</div>
+      <div class="chart-wrap"><canvas id="regionChart" height="220"></canvas></div>
+    </div>
+
+    <div class="chart-card col-7" style="animation-delay:.2s">
+      <div class="chart-title">Claim Records with Fraud Flags</div>
+      <div class="chart-desc">Detailed claim-level view with fraud detection</div>
+      <div style="overflow-x:auto">
+        <table id="claimTable"></table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 5: 3D Scatter -->
+  <div class="section-label">3D Risk Landscape</div>
+  <div class="charts-main" id="row5">
+    <div class="chart-card col-12" style="animation-delay:.1s">
+      <div class="chart-title">3D Insurance Risk Visualization</div>
+      <div class="chart-desc">Claim Amount · Risk Score · Premium USD — hover to explore</div>
+      <div id="scatter3d-container">
+        <canvas id="scatter3d-canvas"></canvas>
+      </div>
+      <div class="legend" style="margin-top:0.8rem">
+        <div class="legend-item"><span class="dot" style="background:#3b82f6"></span>Vehicle</div>
+        <div class="legend-item"><span class="dot" style="background:#10b981"></span>Health</div>
+        <div class="legend-item"><span class="dot" style="background:#f59e0b"></span>Property</div>
+        <div class="legend-item"><span class="dot" style="background:#8b5cf6"></span>Life</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Insurance Claim Risk Analysis · Assignment 5 · Python Visualization · B.E. CSE 2025–2026
+  </footer>
+</div>
+
+<script>
+/* ── DATA ── */
+const data = {
+  ids:    ["C001","C002","C003","C004","C005","C006","C007","C008","C009","C010"],
+  region: ["North","South","East","West","Central","North","South","East","West","Central"],
+  type:   ["Vehicle","Health","Property","Life","Vehicle","Health","Property","Life","Vehicle","Health"],
+  month:  ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"],
+  amount: [52000,38000,61000,75000,29000,48000,55000,33000,44000,68000],
+  risk:   [72,85,65,90,55,70,60,80,58,78],
+  premium:[1200,980,1400,1600,800,1100,1050,900,950,1450],
+  fraud:  [0,1,0,0,1,0,0,1,0,0],
+  age:    [35,42,28,55,31,47,38,60,29,52],
+  yearsActive:[5,8,3,12,2,7,6,10,4,9],
+  dependents: [2,3,1,4,1,2,3,2,1,3]
+};
+
+const typeColors = {
+  Vehicle: "#3b82f6", Health: "#10b981", Property: "#f59e0b", Life: "#8b5cf6"
+};
+
+Chart.defaults.color = "#64748b";
+Chart.defaults.borderColor = "#2a3a55";
+Chart.defaults.font.family = "Outfit";
+
+/* ── helpers ── */
+const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+
+/* ── 1. LINE CHART ── */
+new Chart(document.getElementById("lineChart"), {
+  type: "line",
+  data: {
+    labels: data.month,
+    datasets: [{
+      label: "Claim Amount (USD)",
+      data: data.amount,
+      borderColor: "#3b82f6",
+      backgroundColor: "rgba(59,130,246,0.12)",
+      borderWidth: 2.5,
+      pointRadius: 5,
+      pointBackgroundColor: "#3b82f6",
+      pointHoverRadius: 7,
+      tension: 0.4,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `$${c.parsed.y.toLocaleString()}` } } },
+    scales: {
+      x: { grid: { color: "rgba(255,255,255,0.04)" } },
+      y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { callback: v => `$${(v/1000).toFixed(0)}K` } }
+    }
+  }
+});
+
+/* ── 2. BAR CHART ── */
+const typeCounts = {};
+data.type.forEach(t => typeCounts[t] = (typeCounts[t]||0)+1);
+new Chart(document.getElementById("barChart"), {
+  type: "bar",
+  data: {
+    labels: Object.keys(typeCounts),
+    datasets: [{
+      data: Object.values(typeCounts),
+      backgroundColor: Object.keys(typeCounts).map(t => typeColors[t]+"cc"),
+      borderColor: Object.keys(typeCounts).map(t => typeColors[t]),
+      borderWidth: 1.5,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+/* ── 3. SCATTER ── */
+new Chart(document.getElementById("scatterChart"), {
+  type: "scatter",
+  data: {
+    datasets: [{
+      label: "Claims",
+      data: data.amount.map((a,i) => ({x:a, y:data.risk[i], label: data.ids[i]})),
+      backgroundColor: data.type.map(t => typeColors[t]+"bb"),
+      borderColor: data.type.map(t => typeColors[t]),
+      borderWidth: 1.5,
+      pointRadius: 8,
+      pointHoverRadius: 11
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: c => {
+            const i = c.dataIndex;
+            return [`${data.ids[i]} · ${data.type[i]}`, `Amount: $${c.parsed.x.toLocaleString()}`, `Risk: ${c.parsed.y}`];
+          }
+        }
+      }
+    },
+    scales: {
+      x: { title: { display: true, text: "Claim Amount (USD)" }, grid: { color: "rgba(255,255,255,0.04)" }, ticks: { callback: v=>`$${(v/1000).toFixed(0)}K` } },
+      y: { title: { display: true, text: "Risk Score" }, grid: { color: "rgba(255,255,255,0.04)" } }
+    }
+  }
+});
+
+/* ── 4. HISTOGRAM ── */
+function histogram(data, bins) {
+  const min = Math.min(...data), max = Math.max(...data);
+  const step = (max-min)/bins;
+  const labels = [], counts = [];
+  for (let i=0;i<bins;i++) {
+    const lo = min+i*step, hi = lo+step;
+    labels.push(`${lo.toFixed(0)}–${hi.toFixed(0)}`);
+    counts.push(data.filter(v=>v>=lo&&(i===bins-1?v<=hi:v<hi)).length);
+  }
+  return {labels, counts};
+}
+const hist = histogram(data.risk, 5);
+new Chart(document.getElementById("histChart"), {
+  type: "bar",
+  data: {
+    labels: hist.labels,
+    datasets: [{ data: hist.counts, backgroundColor: "#10b981aa", borderColor: "#10b981", borderWidth: 1.5, borderRadius: 5 }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+      y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+/* ── 5. PIE ── */
+new Chart(document.getElementById("pieChart"), {
+  type: "doughnut",
+  data: {
+    labels: Object.keys(typeCounts),
+    datasets: [{
+      data: Object.values(typeCounts),
+      backgroundColor: Object.keys(typeCounts).map(t => typeColors[t]+"cc"),
+      borderColor: "#1a2235",
+      borderWidth: 3,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: "58%",
+    plugins: {
+      legend: { position: "bottom", labels: { padding: 12, font: { size: 10 } } }
+    }
+  }
+});
+
+/* ── 6. DENSITY (approximated via smooth line) ── */
+(function() {
+  const ps = [...data.premium].sort((a,b)=>a-b);
+  const min = ps[0], max = ps[ps.length-1];
+  const pts = 60;
+  const xs = Array.from({length:pts}, (_,i) => min + i*(max-min)/(pts-1));
+  const bw = 120;
+  const kde = xs.map(x => ps.reduce((s,xi) => s + Math.exp(-0.5*((x-xi)/bw)**2), 0) / (ps.length*bw*Math.sqrt(2*Math.PI)));
+  new Chart(document.getElementById("densityChart"), {
+    type: "line",
+    data: {
+      labels: xs.map(x=>`$${x.toFixed(0)}`),
+      datasets: [{
+        data: kde,
+        borderColor: "#f59e0b",
+        backgroundColor: "rgba(245,158,11,0.15)",
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 5, font: { size: 9 } } },
+        y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { display: false } }
+      }
+    }
+  });
+})();
+
+/* ── 7. HEATMAP ── */
+(function() {
+  const fields = ["Claim_Amt","Risk_Score","Premium","Age","Yrs_Active","Dependents"];
+  const rawData = [
+    data.amount,
+    data.risk,
+    data.premium,
+    data.age,
+    data.yearsActive,
+    data.dependents
+  ];
+  function corr(a,b) {
+    const n=a.length, ma=avg(a), mb=avg(b);
+    const num=a.reduce((s,_,i)=>s+(a[i]-ma)*(b[i]-mb),0);
+    const da=Math.sqrt(a.reduce((s,v)=>s+(v-ma)**2,0));
+    const db=Math.sqrt(b.reduce((s,v)=>s+(v-mb)**2,0));
+    return num/(da*db)||0;
+  }
+  const n = fields.length;
+  const matrix = rawData.map(a => rawData.map(b => corr(a,b)));
+
+  function corrColor(v) {
+    const r = v>=0 ? Math.round(59+(v)*(239-59)) : Math.round(59+(1+v)*(16-59));
+    const g = v>=0 ? Math.round(130+(v)*(68-130)) : Math.round(130+(1+v)*(185-130));
+    const bl= v>=0 ? Math.round(246+(v)*(68-246)) : Math.round(246+(1+v)*(129-246));
+    return `rgb(${r},${g},${bl})`;
+  }
+
+  const size = 44;
+  const container = document.getElementById("heatmapDiv");
+  container.style.overflow = "auto";
+
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "display:grid; gap:3px; margin-top:0.5rem;";
+  wrapper.style.gridTemplateColumns = `70px repeat(${n}, ${size}px)`;
+
+  // header row
+  const emptyCell = document.createElement("div");
+  wrapper.appendChild(emptyCell);
+  fields.forEach(f => {
+    const d = document.createElement("div");
+    d.className = "heatmap-label";
+    d.style.cssText = `text-align:center; font-size:0.6rem; padding:2px; writing-mode:vertical-rl; transform:rotate(180deg); height:55px; display:flex; align-items:center; justify-content:center;`;
+    d.textContent = f;
+    wrapper.appendChild(d);
+  });
+
+  matrix.forEach((row, i) => {
+    const lbl = document.createElement("div");
+    lbl.className = "heatmap-label";
+    lbl.style.cssText = "display:flex; align-items:center; font-size:0.62rem; padding-right:4px; justify-content:flex-end;";
+    lbl.textContent = fields[i];
+    wrapper.appendChild(lbl);
+    row.forEach(v => {
+      const cell = document.createElement("div");
+      cell.className = "heatmap-cell";
+      cell.style.cssText = `width:${size}px; height:${size}px; background:${corrColor(v)}; color:#fff; font-size:0.6rem; border-radius:4px;`;
+      cell.textContent = v.toFixed(2);
+      cell.title = v.toFixed(4);
+      wrapper.appendChild(cell);
+    });
+  });
+  container.appendChild(wrapper);
+})();
+
+/* ── 8. RISK BARS ── */
+(function() {
+  const container = document.getElementById("riskBars");
+  container.style.paddingTop = "0.4rem";
+  const claimColors = ["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f472b6","#34d399","#fb923c","#a78bfa"];
+  data.ids.forEach((id,i) => {
+    const pct = (data.risk[i]/100)*100;
+    const row = document.createElement("div");
+    row.className = "risk-bar-row";
+    row.innerHTML = `
+      <div class="risk-bar-label">${id}</div>
+      <div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%;background:${claimColors[i]}" data-target="${pct}"></div></div>
+      <div class="risk-bar-val">${data.risk[i]}</div>`;
+    container.appendChild(row);
+  });
+  setTimeout(() => {
+    document.querySelectorAll(".risk-bar-fill").forEach(el => {
+      el.style.width = el.dataset.target + "%";
+    });
+  }, 300);
+})();
+
+/* ── 9. REGION BAR ── */
+new Chart(document.getElementById("regionChart"), {
+  type: "bar",
+  data: {
+    labels: data.region,
+    datasets: [{
+      label: "Premium (USD)",
+      data: data.premium,
+      backgroundColor: data.fraud.map(f => f ? "rgba(239,68,68,0.65)" : "rgba(96,165,250,0.65)"),
+      borderColor: data.fraud.map(f => f ? "#ef4444" : "#60a5fa"),
+      borderWidth: 1.5,
+      borderRadius: 5
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: c => `$${c.parsed.y.toLocaleString()}${data.fraud[c.dataIndex]?" ⚠ FRAUD":""}` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+      y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { callback: v=>`$${v}` } }
+    }
+  }
+});
+
+/* ── 10. FRAUD TABLE ── */
+(function() {
+  const table = document.getElementById("claimTable");
+  const headers = ["Claim ID","Region","Type","Month","Amount","Risk","Premium","Age","Fraud"];
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr>" + headers.map(h=>`<th>${h}</th>`).join("") + "</tr>";
+  table.appendChild(thead);
+  const tbody = document.createElement("tbody");
+  data.ids.forEach((id,i) => {
+    const tr = document.createElement("tr");
+    const fraudHTML = data.fraud[i]
+      ? `<span class="fraud-badge fraud-yes">⚠ FRAUD</span>`
+      : `<span class="fraud-badge fraud-no">✓ Clean</span>`;
+    tr.innerHTML = `
+      <td style="font-family:'IBM Plex Mono',monospace;color:#60a5fa">${id}</td>
+      <td>${data.region[i]}</td>
+      <td><span style="color:${typeColors[data.type[i]]}">${data.type[i]}</span></td>
+      <td>${data.month[i]}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">$${data.amount[i].toLocaleString()}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:${data.risk[i]>=80?"#f87171":data.risk[i]>=65?"#fbbf24":"#34d399"}">${data.risk[i]}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">$${data.premium[i].toLocaleString()}</td>
+      <td>${data.age[i]}</td>
+      <td>${fraudHTML}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+})();
+
+/* ── 11. 3D SCATTER (canvas) ── */
+(function() {
+  const canvas = document.getElementById("scatter3d-canvas");
+  const container = document.getElementById("scatter3d-container");
+  const ctx = canvas.getContext("2d");
+
+  let w, h;
+  function resize() {
+    w = canvas.width = container.offsetWidth;
+    h = canvas.height = container.offsetHeight;
+  }
+  resize();
+
+  const points3d = data.amount.map((a,i) => ({
+    x: a, y: data.risk[i], z: data.premium[i],
+    label: data.ids[i], type: data.type[i],
+    color: typeColors[data.type[i]]
+  }));
+
+  let angle = 0.3;
+  let dragging = false, lastX = 0;
+  canvas.addEventListener("mousedown", e => { dragging=true; lastX=e.clientX; });
+  window.addEventListener("mouseup", () => dragging=false);
+  window.addEventListener("mousemove", e => {
+    if(dragging) { angle += (e.clientX-lastX)*0.01; lastX=e.clientX; }
+  });
+
+  function project(x,y,z) {
+    const normX = (x - 29000)/(75000-29000)*2-1;
+    const normY = (y - 55)/(90-55)*2-1;
+    const normZ = (z - 800)/(1600-800)*2-1;
+    const rx = normX*Math.cos(angle) - normZ*Math.sin(angle);
+    const ry = normY;
+    const rz = normX*Math.sin(angle) + normZ*Math.cos(angle);
+    const fov = 3; const scale = 110;
+    const px = (rx/(rz+fov))*scale + w/2;
+    const py = (-ry/(rz+fov))*scale + h/2;
+    const sz = (10+rz*4);
+    return {px, py, sz};
+  }
+
+  function drawAxes() {
+    ctx.strokeStyle = "rgba(96,130,200,0.3)"; ctx.lineWidth = 1;
+    const origin = project(29000, 55, 800);
+    const ax = project(75000, 55, 800);
+    const ay = project(29000, 90, 800);
+    const az = project(29000, 55, 1600);
+    [[origin,ax,"Claim Amt"],[origin,ay,"Risk"],[origin,az,"Premium"]].forEach(([o,t,lbl])=>{
+      ctx.beginPath(); ctx.moveTo(o.px,o.py); ctx.lineTo(t.px,t.py); ctx.stroke();
+      ctx.fillStyle="rgba(100,116,139,0.9)"; ctx.font="10px IBM Plex Mono";
+      ctx.fillText(lbl, t.px+4, t.py);
+    });
+  }
+
+  function frame() {
+    ctx.clearRect(0,0,w,h);
+    if(!dragging) angle += 0.004;
+    drawAxes();
+    points3d.forEach(pt => {
+      const {px,py,sz} = project(pt.x, pt.y, pt.z);
+      ctx.beginPath();
+      ctx.arc(px, py, Math.max(sz,4), 0, Math.PI*2);
+      ctx.fillStyle = pt.color + "cc";
+      ctx.fill();
+      ctx.strokeStyle = pt.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "rgba(226,232,240,0.85)";
+      ctx.font = "9px IBM Plex Mono";
+      ctx.fillText(pt.label, px+sz+2, py+3);
+    });
+    requestAnimationFrame(frame);
+  }
+  frame();
+
+  window.addEventListener("resize", () => { resize(); });
+})();
+</script>
+</body>
+</html>
